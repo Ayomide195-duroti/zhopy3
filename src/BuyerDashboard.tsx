@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import ReportModal from './ReportModal';
 
 type Order = { id: number; product: string; seller: string; price: number; date: string; status: 'delivered' | 'pending' };
 type Product = { id: number; name: string; price: number; seller: string; rating: number; img: string };
@@ -55,6 +56,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   cancelLink: { fontSize: 11, color: 'rgba(246,240,225,0.6)', textAlign: 'center', marginTop: 10, cursor: 'pointer', textDecoration: 'underline' },
   successBanner: { background: '#D6A419', color: '#22160B', padding: '12px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700, marginBottom: 20 },
   sectionTitle: { fontSize: 14, fontWeight: 800, marginBottom: 12 },
+  sectionHeadRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+  reportLink: { fontSize: 12, fontWeight: 700, color: '#B23A2F', background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline' },
   orderRow: { background: '#fff', borderRadius: 8, border: '1px solid rgba(34,22,11,0.1)', padding: '14px 16px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
   orderName: { fontSize: 13, fontWeight: 700, marginBottom: 2 },
   orderMeta: { fontSize: 11, color: 'rgba(34,22,11,0.5)' },
@@ -88,6 +91,7 @@ export default function BuyerDashboard({ onSignOut }: { onSignOut: () => void })
   const [selectedAmount, setSelectedAmount] = useState<number | null>(null);
   const [customAmount, setCustomAmount] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showReport, setShowReport] = useState(false);
 
   function handleFund() {
     const amount = selectedAmount ?? Number(customAmount);
@@ -192,4 +196,41 @@ export default function BuyerDashboard({ onSignOut }: { onSignOut: () => void })
                     onChange={(e) => { setCustomAmount(e.target.value); setSelectedAmount(null); }}
                   />
                   <button style={styles.fundBtn} onClick={handleFund}>Fund with Paystack</button>
-                  <p style={styles.cancelLink} onClick={
+                  <p style={styles.cancelLink} onClick={() => setShowTopUp(false)}>Cancel</p>
+                </div>
+              )}
+            </div>
+
+            <div style={styles.sectionHeadRow}>
+              <p style={{ ...styles.sectionTitle, marginBottom: 0 }}>Order History</p>
+              <button style={styles.reportLink} onClick={() => setShowReport(true)}>Report an issue</button>
+            </div>
+
+            {orders.length === 0 ? (
+              <div style={styles.emptyState}>
+                <p style={styles.emptyText}>No orders yet. Start shopping to see your orders here.</p>
+              </div>
+            ) : (
+              orders.map((o) => (
+                <div key={o.id} style={styles.orderRow}>
+                  <div>
+                    <p style={styles.orderName}>{o.product}</p>
+                    <p style={styles.orderMeta}>{o.seller} · {o.date}</p>
+                  </div>
+                  <div style={styles.orderRight}>
+                    <p style={styles.orderPrice}>₦{o.price.toLocaleString()}</p>
+                    <span style={styles.statusBadge(o.status)}>{o.status}</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </>
+        )}
+      </main>
+
+      {showReport && (
+        <ReportModal subjectLabel="General issue" onClose={() => setShowReport(false)} />
+      )}
+    </div>
+  );
+    }
