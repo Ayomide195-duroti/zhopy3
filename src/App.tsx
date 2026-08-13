@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import Auth from './Auth';
 import Home from './Home';
 import SellerDashboard from './SellerDashboard';
+import AdminDashboard from './AdminDashboard';
 
 type Role = 'buyer' | 'seller' | 'admin';
 
@@ -20,6 +21,10 @@ export default function App() {
     return <SellerDashboard onSignOut={handleSignOut} />;
   }
 
-  // buyer and admin both land on Home for now
-  return <Home onSignOut={handleSignOut} />;
+  if (role === 'admin') {
+    return <AdminDashboard onSignOut={handleSignOut} />;
   }
+
+  // buyer lands on Home for now
+  return <Home onSignOut={handleSignOut} />;
+}
