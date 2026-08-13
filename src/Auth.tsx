@@ -43,7 +43,7 @@ const ROLES: { id: Role; title: string; desc: string }[] = [
   { id: 'admin', title: 'Admin', desc: 'Manage sellers, products & orders' },
 ];
 
-export default function Auth({ onComplete }: { onComplete: () => void }) {
+export default function Auth({ onComplete }: { onComplete: (role: Role) => void }) {
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [mode, setMode] = useState<Mode>('signup');
 
@@ -91,7 +91,7 @@ export default function Auth({ onComplete }: { onComplete: () => void }) {
             <label style={styles.label}>Password</label>
             <input style={styles.input} placeholder="••••••••" type="password" />
 
-            <button style={styles.submitBtn} onClick={onComplete}>
+            <button style={styles.submitBtn} onClick={() => onComplete(selectedRole)}>
               {mode === 'signup' ? `Create ${selectedRole} account` : 'Log in'}
             </button>
 
@@ -109,4 +109,4 @@ export default function Auth({ onComplete }: { onComplete: () => void }) {
       </div>
     </div>
   );
-              }
+                    }
