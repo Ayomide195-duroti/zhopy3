@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 
 type Tab = 'sellers' | 'products' | 'reports';
-
 type PendingSeller = { id: number; name: string; business: string; date: string };
 type AdminProduct = { id: number; name: string; seller: string; price: number; category: string };
 type Report = { id: number; product: string; reporter: string; reason: string; status: 'open' | 'resolved' };
@@ -41,11 +40,6 @@ const styles: { [key: string]: React.CSSProperties } = {
   approveBtn: { background: '#22160B', color: '#F6F0E1', fontSize: 11, fontWeight: 700, padding: '7px 12px', borderRadius: 6, border: 'none', cursor: 'pointer' },
   rejectBtn: { background: 'transparent', color: '#B23A2F', fontSize: 11, fontWeight: 700, padding: '7px 12px', borderRadius: 6, border: '1px solid #B23A2F', cursor: 'pointer' },
   removeBtn: { background: 'transparent', color: '#B23A2F', fontSize: 11, fontWeight: 700, padding: '7px 12px', borderRadius: 6, border: '1px solid #B23A2F', cursor: 'pointer' },
-  statusBadge: (status: string): React.CSSProperties => ({
-    fontSize: 10, fontWeight: 700, textTransform: 'uppercase', padding: '3px 9px', borderRadius: 999,
-    background: status === 'open' ? '#B23A2F' : '#4A6B4D',
-    color: '#F6F0E1',
-  }),
   emptyState: { textAlign: 'center', padding: '32px 20px', border: '1px dashed rgba(34,22,11,0.2)', borderRadius: 8, background: '#fff' },
   emptyText: { fontSize: 13, color: 'rgba(34,22,11,0.55)' },
 };
@@ -66,6 +60,14 @@ function tabBtnStyle(active: boolean): React.CSSProperties {
   };
 }
 
+function statusBadgeStyle(status: string): React.CSSProperties {
+  return {
+    fontSize: 10, fontWeight: 700, textTransform: 'uppercase', padding: '3px 9px', borderRadius: 999,
+    background: status === 'open' ? '#B23A2F' : '#4A6B4D',
+    color: '#F6F0E1',
+  };
+}
+
 export default function AdminDashboard({ onSignOut }: { onSignOut: () => void }) {
   const [tab, setTab] = useState<Tab>('sellers');
   const [sellers, setSellers] = useState(SAMPLE_SELLERS);
@@ -75,12 +77,15 @@ export default function AdminDashboard({ onSignOut }: { onSignOut: () => void })
   function approveSeller(id: number) {
     setSellers(sellers.filter((s) => s.id !== id));
   }
+
   function rejectSeller(id: number) {
     setSellers(sellers.filter((s) => s.id !== id));
   }
+
   function removeProduct(id: number) {
     setProducts(products.filter((p) => p.id !== id));
   }
+
   function resolveReport(id: number) {
     setReports(reports.map((r) => (r.id === id ? { ...r, status: 'resolved' as const } : r)));
   }
@@ -88,7 +93,6 @@ export default function AdminDashboard({ onSignOut }: { onSignOut: () => void })
   return (
     <div style={styles.page}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');`}</style>
-
       <header style={styles.header}>
         <div style={styles.headerRow}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -168,7 +172,7 @@ export default function AdminDashboard({ onSignOut }: { onSignOut: () => void })
                   <p style={styles.rowMeta}>Reported by {r.reporter} · {r.reason}</p>
                 </div>
                 <div style={styles.btnGroup}>
-                  <span style={styles.statusBadge(r.status)}>{r.status}</span>
+                  <span style={statusBadgeStyle(r.status)}>{r.status}</span>
                   {r.status === 'open' && (
                     <button style={styles.approveBtn} onClick={() => resolveReport(r.id)}>Resolve</button>
                   )}
@@ -180,4 +184,4 @@ export default function AdminDashboard({ onSignOut }: { onSignOut: () => void })
       </main>
     </div>
   );
-               }
+                     }
