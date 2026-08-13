@@ -20,9 +20,11 @@ const styles: { [key: string]: React.CSSProperties } = {
   main: { maxWidth: 900, margin: '0 auto', padding: '24px 16px 48px' },
   pageTitle: { fontSize: 18, fontWeight: 800, marginBottom: 4 },
   pageSub: { fontSize: 13, color: 'rgba(34,22,11,0.55)', marginBottom: 24 },
+  successBanner: { background: '#D6A419', color: '#22160B', padding: '12px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700, marginBottom: 20 },
   layout: { display: 'flex', flexDirection: 'column', gap: 24 },
   formCard: { background: '#fff', borderRadius: 10, border: '1px solid rgba(34,22,11,0.1)', padding: 20 },
   formTitle: { fontSize: 14, fontWeight: 800, marginBottom: 16 },
+  errorText: { fontSize: 12, color: '#B23A2F', marginBottom: 12, fontWeight: 600 },
   label: { fontSize: 12, fontWeight: 600, marginBottom: 6, display: 'block' },
   input: { width: '100%', padding: '11px 14px', borderRadius: 7, border: '1px solid rgba(34,22,11,0.18)', fontSize: 14, marginBottom: 14, fontFamily: "'Manrope', sans-serif", background: '#F6F0E1' },
   textarea: { width: '100%', padding: '11px 14px', borderRadius: 7, border: '1px solid rgba(34,22,11,0.18)', fontSize: 14, marginBottom: 14, fontFamily: "'Manrope', sans-serif", background: '#F6F0E1', minHeight: 80, resize: 'vertical' as const },
@@ -46,14 +48,28 @@ export default function SellerDashboard({ onSignOut }: { onSignOut: () => void }
   const [price, setPrice] = useState('');
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [description, setDescription] = useState('');
+  const [error, setError] = useState('');
+  const [showSuccess, setShowSuccess] = useState(false);
 
   function handlePost(e: React.FormEvent) {
     e.preventDefault();
-    if (!name || !price) return;
+    setError('');
+
+    if (!name.trim()) {
+      setError('Please enter a product name.');
+      return;
+    }
+    if (!price.trim()) {
+      setError('Please enter a price.');
+      return;
+    }
+
     setProducts([{ id: Date.now(), name, price, category, description }, ...products]);
     setName('');
     setPrice('');
     setDescription('');
+    setShowSuccess(true);
+    setTimeout(() => setShowSuccess(false), 3000);
   }
 
   return (
@@ -74,13 +90,19 @@ export default function SellerDashboard({ onSignOut }: { onSignOut: () => void }
         <p style={styles.pageTitle}>Seller Dashboard</p>
         <p style={styles.pageSub}>Post new products and manage your listings.</p>
 
+        {showSuccess && (
+          <div style={styles.successBanner}>✓ Product posted successfully!</div>
+        )}
+
         <div style={styles.layout}>
           <form style={styles.formCard} onSubmit={handlePost}>
             <p style={styles.formTitle}>Add a product</p>
 
+            {error && <p style={styles.errorText}>{error}</p>}
+
             <div style={styles.uploadBox}>
               <div style={{ fontSize: 22 }}>📷</div>
-              <p style={styles.uploadText}>Tap to upload a product photo</p>
+              <p style={styles.uploadText}>Photo upload coming soon</p>
             </div>
 
             <label style={styles.label}>Product name</label>
@@ -141,4 +163,4 @@ export default function SellerDashboard({ onSignOut }: { onSignOut: () => void }
       </main>
     </div>
   );
-              }
+        }
