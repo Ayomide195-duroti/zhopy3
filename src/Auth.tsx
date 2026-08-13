@@ -19,7 +19,6 @@ const styles: { [key: string]: React.CSSProperties } = {
   }),
   roleTitle: { fontSize: 14, fontWeight: 700 },
   roleDesc: { fontSize: 11, marginTop: 2, opacity: 0.65 },
-  continueBtn: { marginTop: 20, width: '100%', background: '#D6A419', color: '#22160B', fontSize: 14, fontWeight: 700, padding: '13px', borderRadius: 8, border: 'none', cursor: 'pointer' },
   formTitle: { fontSize: 17, fontWeight: 800, marginBottom: 4 },
   formSub: { fontSize: 12, color: 'rgba(34,22,11,0.5)', marginBottom: 20 },
   label: { fontSize: 12, fontWeight: 600, marginBottom: 6, display: 'block' },
@@ -37,7 +36,7 @@ const ROLES: { id: Role; title: string; desc: string }[] = [
   { id: 'admin', title: 'Admin', desc: 'Manage sellers, products & orders' },
 ];
 
-export default function Auth() {
+export default function Auth({ onComplete }: { onComplete: () => void }) {
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [mode, setMode] = useState<Mode>('signup');
 
@@ -85,7 +84,7 @@ export default function Auth() {
             <label style={styles.label}>Password</label>
             <input style={styles.input} placeholder="••••••••" type="password" />
 
-            <button style={styles.submitBtn}>
+            <button style={styles.submitBtn} onClick={onComplete}>
               {mode === 'signup' ? `Create ${selectedRole} account` : 'Log in'}
             </button>
 
@@ -103,4 +102,4 @@ export default function Auth() {
       </div>
     </div>
   );
-    }
+}
