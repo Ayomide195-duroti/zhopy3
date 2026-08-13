@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Auth from './Auth';
-import Home from './Home';
+import BuyerDashboard from './BuyerDashboard';
 import SellerDashboard from './SellerDashboard';
 import AdminDashboard from './AdminDashboard';
 
@@ -25,6 +25,5 @@ export default function App() {
     return <AdminDashboard onSignOut={handleSignOut} />;
   }
 
-  // buyer lands on Home for now
-  return <Home onSignOut={handleSignOut} />;
+  return <BuyerDashboard onSignOut={handleSignOut} />;
 }
