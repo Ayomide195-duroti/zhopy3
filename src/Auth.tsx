@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 type Role = 'buyer' | 'seller' | 'admin';
 type Mode = 'login' | 'signup';
 
+const ADMIN_CODE = 'zhopy-admin-2026';
+
 const styles: { [key: string]: React.CSSProperties } = {
   page: { fontFamily: "'Manrope', sans-serif", minHeight: '100vh', background: '#F6F0E1', color: '#22160B', display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 16px' },
   logo: { fontSize: 22, fontWeight: 800, letterSpacing: '-0.5px', marginBottom: 4 },
@@ -21,6 +23,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   switchRow: { fontSize: 12, textAlign: 'center', marginTop: 18, color: 'rgba(34,22,11,0.6)' },
   switchLink: { fontWeight: 700, color: '#22160B', cursor: 'pointer', textDecoration: 'underline' },
   roleBadge: { display: 'inline-block', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px', background: '#D6A419', color: '#22160B', padding: '3px 9px', borderRadius: 999, marginBottom: 16 },
+  errorText: { fontSize: 12, color: '#B23A2F', marginBottom: 12, fontWeight: 600 },
+  adminNote: { fontSize: 11, color: 'rgba(34,22,11,0.5)', marginBottom: 14, lineHeight: 1.4 },
 };
 
 function roleBtnStyle(active: boolean): React.CSSProperties {
@@ -46,6 +50,18 @@ const ROLES: { id: Role; title: string; desc: string }[] = [
 export default function Auth({ onComplete }: { onComplete: (role: Role) => void }) {
   const [selectedRole, setSelectedRole] = useState<Role | null>(null);
   const [mode, setMode] = useState<Mode>('signup');
+  const [adminCode, setAdminCode] = useState('');
+  const [adminError, setAdminError] = useState('');
+
+  function handleSubmit() {
+    if (selectedRole === 'admin') {
+      if (adminCode !== ADMIN_CODE) {
+        setAdminError('Incorrect admin access code.');
+        return;
+      }
+    }
+    if (selectedRole) onComplete(selectedRole);
+  }
 
   return (
     <div style={styles.page}>
@@ -73,12 +89,16 @@ export default function Auth({ onComplete }: { onComplete: (role: Role) => void 
         ) : (
           <>
             <span style={styles.roleBadge}>{selectedRole}</span>
-            <p style={styles.formTitle}>{mode === 'signup' ? 'Create your account' : 'Welcome back'}</p>
+            <p style={styles.formTitle}>
+              {selectedRole === 'admin' ? 'Admin access' : mode === 'signup' ? 'Create your account' : 'Welcome back'}
+            </p>
             <p style={styles.formSub}>
-              {mode === 'signup' ? 'Fill in your details to get started.' : 'Log in to continue to Zhopy.'}
+              {selectedRole === 'admin'
+                ? 'Enter your details and the admin access code.'
+                : mode === 'signup' ? 'Fill in your details to get started.' : 'Log in to continue to Zhopy.'}
             </p>
 
-            {mode === 'signup' && (
+            {selectedRole !== 'admin' && mode === 'signup' && (
               <>
                 <label style={styles.label}>Full name</label>
                 <input style={styles.input} placeholder="e.g. Ayomide Duroti" />
@@ -91,22 +111,38 @@ export default function Auth({ onComplete }: { onComplete: (role: Role) => void 
             <label style={styles.label}>Password</label>
             <input style={styles.input} placeholder="••••••••" type="password" />
 
-            <button style={styles.submitBtn} onClick={() => onComplete(selectedRole)}>
-              {mode === 'signup' ? `Create ${selectedRole} account` : 'Log in'}
+            {selectedRole === 'admin' && (
+              <>
+                <label style={styles.label}>Admin access code</label>
+                <input
+                  style={styles.input}
+                  placeholder="Enter admin code"
+                  type="password"
+                  value={adminCode}
+                  onChange={(e) => { setAdminCode(e.target.value); setAdminError(''); }}
+                />
+                {adminError && <p style={styles.errorText}>{adminError}</p>}
+              </>
+            )}
+
+            <button style={styles.submitBtn} onClick={handleSubmit}>
+              {selectedRole === 'admin' ? 'Enter Admin Dashboard' : mode === 'signup' ? `Create ${selectedRole} account` : 'Log in'}
             </button>
 
-            <p style={styles.switchRow}>
-              {mode === 'signup' ? (
-                <>Already have an account? <span style={styles.switchLink} onClick={() => setMode('login')}>Log in</span></>
-              ) : (
-                <>New to Zhopy? <span style={styles.switchLink} onClick={() => setMode('signup')}>Sign up</span></>
-              )}
-            </p>
+            {selectedRole !== 'admin' && (
+              <p style={styles.switchRow}>
+                {mode === 'signup' ? (
+                  <>Already have an account? <span style={styles.switchLink} onClick={() => setMode('login')}>Log in</span></>
+                ) : (
+                  <>New to Zhopy? <span style={styles.switchLink} onClick={() => setMode('signup')}>Sign up</span></>
+                )}
+              </p>
+            )}
 
-            <p style={styles.backLink} onClick={() => setSelectedRole(null)}>← Choose a different role</p>
+            <p style={styles.backLink} onClick={() => { setSelectedRole(null); setAdminCode(''); setAdminError(''); }}>← Choose a different role</p>
           </>
         )}
       </div>
     </div>
   );
-                    }
+      }
