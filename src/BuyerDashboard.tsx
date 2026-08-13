@@ -1,21 +1,42 @@
 import React, { useState } from 'react';
 
 type Order = { id: number; product: string; seller: string; price: number; date: string; status: 'delivered' | 'pending' };
+type Product = { id: number; name: string; price: number; seller: string; rating: number; img: string };
 
+const CATEGORIES = ['All', 'Phones', 'Fashion', 'Home & Living', 'Electronics', 'Beauty', 'Groceries'];
+const PRODUCTS: Product[] = [];
 const SAMPLE_ORDERS: Order[] = [];
-
 const PRESET_AMOUNTS = [1000, 5000, 10000, 25000];
 
 const styles: { [key: string]: React.CSSProperties } = {
   page: { fontFamily: "'Manrope', sans-serif", minHeight: '100vh', background: '#F6F0E1', color: '#22160B' },
-  header: { background: '#22160B', padding: '18px 16px' },
+  header: { background: '#22160B', padding: '14px 16px' },
   headerRow: { maxWidth: 900, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  headerLeft: { display: 'flex', alignItems: 'center', gap: 10 },
   logo: { color: '#F6F0E1', fontSize: 18, fontWeight: 800, letterSpacing: '-0.3px' },
   roleTag: { background: '#D6A419', color: '#22160B', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', padding: '3px 10px', borderRadius: 999 },
+  headerRight: { display: 'flex', alignItems: 'center', gap: 14 },
+  miniWallet: { fontSize: 12, fontWeight: 700, color: '#F6F0E1' },
   signOutBtn: { fontSize: 11, fontWeight: 600, color: 'rgba(246,240,225,0.6)', background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline' },
-  main: { maxWidth: 700, margin: '0 auto', padding: '24px 16px 48px' },
-  pageTitle: { fontSize: 18, fontWeight: 800, marginBottom: 4 },
-  pageSub: { fontSize: 13, color: 'rgba(34,22,11,0.55)', marginBottom: 24 },
+  tabRow: { display: 'flex', maxWidth: 900, margin: '0 auto', padding: '0 16px' },
+  tabBtn: (active: boolean): React.CSSProperties => ({
+    flex: 1, textAlign: 'center', padding: '12px 0', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+    background: 'transparent', border: 'none',
+    color: active ? '#22160B' : 'rgba(34,22,11,0.4)',
+    borderBottom: active ? '2px solid #D6A419' : '2px solid transparent',
+  }),
+  main: { maxWidth: 900, margin: '0 auto', padding: '20px 16px 48px' },
+  catStrip: { display: 'flex', gap: 8, marginBottom: 16, overflowX: 'auto' },
+  grid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 },
+  card: { background: '#fff', borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(34,22,11,0.1)' },
+  imgWrap: { aspectRatio: '1/1', background: 'rgba(34,22,11,0.05)', overflow: 'hidden' },
+  img: { width: '100%', height: '100%', objectFit: 'cover', display: 'block' },
+  cardBody: { padding: '10px 12px 12px' },
+  sellerTag: { fontSize: 10, fontWeight: 600, letterSpacing: '0.3px', color: 'rgba(34,22,11,0.42)', marginBottom: 4, textTransform: 'uppercase' },
+  prodName: { fontSize: 13, fontWeight: 700, lineHeight: 1.3, marginBottom: 6 },
+  priceRow: { display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  price: { fontWeight: 800, fontSize: 14 },
+  addBtn: { background: '#22160B', color: '#F6F0E1', fontSize: 11, fontWeight: 700, padding: '7px 13px', borderRadius: 5, border: 'none', cursor: 'pointer' },
   walletCard: { background: '#22160B', borderRadius: 12, padding: '24px 20px', marginBottom: 24 },
   walletLabel: { fontSize: 11, color: 'rgba(246,240,225,0.6)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 6 },
   walletAmount: { fontSize: 28, fontWeight: 800, color: '#F6F0E1', marginBottom: 16 },
@@ -48,7 +69,19 @@ const styles: { [key: string]: React.CSSProperties } = {
   emptyText: { fontSize: 13, color: 'rgba(34,22,11,0.55)' },
 };
 
+function catBtnStyle(active: boolean): React.CSSProperties {
+  return {
+    padding: '6px 16px', borderRadius: 5, fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap',
+    border: active ? 'none' : '1px solid rgba(34,22,11,0.15)',
+    background: active ? '#22160B' : '#fff',
+    color: active ? '#F6F0E1' : 'rgba(34,22,11,0.65)',
+    cursor: 'pointer',
+  };
+}
+
 export default function BuyerDashboard({ onSignOut }: { onSignOut: () => void }) {
+  const [tab, setTab] = useState<'shop' | 'wallet'>('shop');
+  const [activeCat, setActiveCat] = useState('All');
   const [balance, setBalance] = useState(45250);
   const [orders] = useState<Order[]>(SAMPLE_ORDERS);
   const [showTopUp, setShowTopUp] = useState(false);
@@ -73,74 +106,90 @@ export default function BuyerDashboard({ onSignOut }: { onSignOut: () => void })
 
       <header style={styles.header}>
         <div style={styles.headerRow}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={styles.headerLeft}>
             <span style={styles.logo}>ZHOPY</span>
             <span style={styles.roleTag}>Buyer</span>
           </div>
-          <button style={styles.signOutBtn} onClick={onSignOut}>Sign out</button>
+          <div style={styles.headerRight}>
+            <span style={styles.miniWallet}>₦{balance.toLocaleString()}</span>
+            <button style={styles.signOutBtn} onClick={onSignOut}>Sign out</button>
+          </div>
         </div>
       </header>
 
+      <div style={styles.tabRow}>
+        <button style={styles.tabBtn(tab === 'shop')} onClick={() => setTab('shop')}>Shop</button>
+        <button style={styles.tabBtn(tab === 'wallet')} onClick={() => setTab('wallet')}>Wallet</button>
+      </div>
+
       <main style={styles.main}>
-        <p style={styles.pageTitle}>My Wallet</p>
-        <p style={styles.pageSub}>Top up your balance and track your orders.</p>
+        {tab === 'shop' && (
+          <>
+            <div style={styles.catStrip}>
+              {CATEGORIES.map((cat) => (
+                <button key={cat} style={catBtnStyle(activeCat === cat)} onClick={() => setActiveCat(cat)}>
+                  {cat}
+                </button>
+              ))}
+            </div>
 
-        {showSuccess && <div style={styles.successBanner}>✓ Wallet funded successfully!</div>}
-
-        <div style={styles.walletCard}>
-          <p style={styles.walletLabel}>Available Balance</p>
-          <p style={styles.walletAmount}>₦{balance.toLocaleString()}</p>
-
-          {!showTopUp ? (
-            <button style={styles.topUpBtn} onClick={() => setShowTopUp(true)}>+ Top Up Wallet</button>
-          ) : (
-            <div style={styles.topUpForm}>
-              <label style={styles.formLabel}>Choose an amount</label>
-              <div style={styles.presetRow}>
-                {PRESET_AMOUNTS.map((amt) => (
-                  <button
-                    key={amt}
-                    style={styles.presetBtn(selectedAmount === amt)}
-                    onClick={() => { setSelectedAmount(amt); setCustomAmount(''); }}
-                  >
-                    ₦{amt.toLocaleString()}
-                  </button>
+            {PRODUCTS.length === 0 ? (
+              <div style={styles.emptyState}>
+                <p style={styles.emptyText}>No products yet. Once sellers start posting, their products will show up here.</p>
+              </div>
+            ) : (
+              <div style={styles.grid}>
+                {PRODUCTS.map((p) => (
+                  <div key={p.id} style={styles.card}>
+                    <div style={styles.imgWrap}>
+                      <img src={p.img} alt={p.name} style={styles.img} />
+                    </div>
+                    <div style={styles.cardBody}>
+                      <p style={styles.sellerTag}>{p.seller}</p>
+                      <p style={styles.prodName}>{p.name}</p>
+                      <div style={styles.priceRow}>
+                        <span style={styles.price}>₦{p.price.toLocaleString()}</span>
+                        <button style={styles.addBtn}>Add</button>
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
-              <label style={styles.formLabel}>Or enter custom amount</label>
-              <input
-                style={styles.amountInput}
-                type="number"
-                placeholder="e.g. 15000"
-                value={customAmount}
-                onChange={(e) => { setCustomAmount(e.target.value); setSelectedAmount(null); }}
-              />
-              <button style={styles.fundBtn} onClick={handleFund}>Fund with Paystack</button>
-              <p style={styles.cancelLink} onClick={() => setShowTopUp(false)}>Cancel</p>
-            </div>
-          )}
-        </div>
-
-        <p style={styles.sectionTitle}>Order History</p>
-        {orders.length === 0 ? (
-          <div style={styles.emptyState}>
-            <p style={styles.emptyText}>No orders yet. Start shopping to see your orders here.</p>
-          </div>
-        ) : (
-          orders.map((o) => (
-            <div key={o.id} style={styles.orderRow}>
-              <div>
-                <p style={styles.orderName}>{o.product}</p>
-                <p style={styles.orderMeta}>{o.seller} · {o.date}</p>
-              </div>
-              <div style={styles.orderRight}>
-                <p style={styles.orderPrice}>₦{o.price.toLocaleString()}</p>
-                <span style={styles.statusBadge(o.status)}>{o.status}</span>
-              </div>
-            </div>
-          ))
+            )}
+          </>
         )}
-      </main>
-    </div>
-  );
-            }
+
+        {tab === 'wallet' && (
+          <>
+            {showSuccess && <div style={styles.successBanner}>✓ Wallet funded successfully!</div>}
+
+            <div style={styles.walletCard}>
+              <p style={styles.walletLabel}>Available Balance</p>
+              <p style={styles.walletAmount}>₦{balance.toLocaleString()}</p>
+
+              {!showTopUp ? (
+                <button style={styles.topUpBtn} onClick={() => setShowTopUp(true)}>+ Top Up Wallet</button>
+              ) : (
+                <div style={styles.topUpForm}>
+                  <label style={styles.formLabel}>Choose an amount</label>
+                  <div style={styles.presetRow}>
+                    {PRESET_AMOUNTS.map((amt) => (
+                      <button
+                        key={amt}
+                        style={styles.presetBtn(selectedAmount === amt)}
+                        onClick={() => { setSelectedAmount(amt); setCustomAmount(''); }}
+                      >
+                        ₦{amt.toLocaleString()}
+                      </button>
+                    ))}
+                  </div>
+                  <label style={styles.formLabel}>Or enter custom amount</label>
+                  <input
+                    style={styles.amountInput}
+                    type="number"
+                    placeholder="e.g. 15000"
+                    value={customAmount}
+                    onChange={(e) => { setCustomAmount(e.target.value); setSelectedAmount(null); }}
+                  />
+                  <button style={styles.fundBtn} onClick={handleFund}>Fund with Paystack</button>
+                  <p style={styles.cancelLink} onClick={
