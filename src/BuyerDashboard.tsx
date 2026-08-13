@@ -20,12 +20,6 @@ const styles: { [key: string]: React.CSSProperties } = {
   miniWallet: { fontSize: 12, fontWeight: 700, color: '#F6F0E1' },
   signOutBtn: { fontSize: 11, fontWeight: 600, color: 'rgba(246,240,225,0.6)', background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline' },
   tabRow: { display: 'flex', maxWidth: 900, margin: '0 auto', padding: '0 16px' },
-  tabBtn: (active: boolean): React.CSSProperties => ({
-    flex: 1, textAlign: 'center', padding: '12px 0', fontSize: 13, fontWeight: 700, cursor: 'pointer',
-    background: 'transparent', border: 'none',
-    color: active ? '#22160B' : 'rgba(34,22,11,0.4)',
-    borderBottom: active ? '2px solid #D6A419' : '2px solid transparent',
-  }),
   main: { maxWidth: 900, margin: '0 auto', padding: '20px 16px 48px' },
   catStrip: { display: 'flex', gap: 8, marginBottom: 16, overflowX: 'auto' },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 },
@@ -45,12 +39,6 @@ const styles: { [key: string]: React.CSSProperties } = {
   topUpForm: { background: 'rgba(246,240,225,0.08)', borderRadius: 8, padding: 16, marginTop: 16 },
   formLabel: { fontSize: 11, color: 'rgba(246,240,225,0.6)', fontWeight: 600, marginBottom: 8, display: 'block' },
   presetRow: { display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' as const },
-  presetBtn: (active: boolean): React.CSSProperties => ({
-    padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-    border: active ? 'none' : '1px solid rgba(246,240,225,0.3)',
-    background: active ? '#D6A419' : 'transparent',
-    color: active ? '#22160B' : '#F6F0E1',
-  }),
   amountInput: { width: '100%', padding: '11px 14px', borderRadius: 7, border: 'none', fontSize: 14, marginBottom: 12, fontFamily: "'Manrope', sans-serif", background: '#F6F0E1', color: '#22160B' },
   fundBtn: { width: '100%', background: '#D6A419', color: '#22160B', fontSize: 13, fontWeight: 700, padding: '12px', borderRadius: 8, border: 'none', cursor: 'pointer' },
   cancelLink: { fontSize: 11, color: 'rgba(246,240,225,0.6)', textAlign: 'center', marginTop: 10, cursor: 'pointer', textDecoration: 'underline' },
@@ -63,11 +51,6 @@ const styles: { [key: string]: React.CSSProperties } = {
   orderMeta: { fontSize: 11, color: 'rgba(34,22,11,0.5)' },
   orderRight: { textAlign: 'right' as const },
   orderPrice: { fontSize: 13, fontWeight: 800, marginBottom: 3 },
-  statusBadge: (status: string): React.CSSProperties => ({
-    fontSize: 9, fontWeight: 700, textTransform: 'uppercase', padding: '2px 8px', borderRadius: 999,
-    background: status === 'delivered' ? '#4A6B4D' : '#D6A419',
-    color: status === 'delivered' ? '#F6F0E1' : '#22160B',
-  }),
   emptyState: { textAlign: 'center', padding: '32px 20px', border: '1px dashed rgba(34,22,11,0.2)', borderRadius: 8, background: '#fff' },
   emptyText: { fontSize: 13, color: 'rgba(34,22,11,0.55)' },
 };
@@ -79,6 +62,32 @@ function catBtnStyle(active: boolean): React.CSSProperties {
     background: active ? '#22160B' : '#fff',
     color: active ? '#F6F0E1' : 'rgba(34,22,11,0.65)',
     cursor: 'pointer',
+  };
+}
+
+function tabBtnStyle(active: boolean): React.CSSProperties {
+  return {
+    flex: 1, textAlign: 'center', padding: '12px 0', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+    background: 'transparent', border: 'none',
+    color: active ? '#22160B' : 'rgba(34,22,11,0.4)',
+    borderBottom: active ? '2px solid #D6A419' : '2px solid transparent',
+  };
+}
+
+function presetBtnStyle(active: boolean): React.CSSProperties {
+  return {
+    padding: '7px 14px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+    border: active ? 'none' : '1px solid rgba(246,240,225,0.3)',
+    background: active ? '#D6A419' : 'transparent',
+    color: active ? '#22160B' : '#F6F0E1',
+  };
+}
+
+function orderStatusBadgeStyle(status: string): React.CSSProperties {
+  return {
+    fontSize: 9, fontWeight: 700, textTransform: 'uppercase', padding: '2px 8px', borderRadius: 999,
+    background: status === 'delivered' ? '#4A6B4D' : '#D6A419',
+    color: status === 'delivered' ? '#F6F0E1' : '#22160B',
   };
 }
 
@@ -107,7 +116,6 @@ export default function BuyerDashboard({ onSignOut }: { onSignOut: () => void })
   return (
     <div style={styles.page}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap');`}</style>
-
       <header style={styles.header}>
         <div style={styles.headerRow}>
           <div style={styles.headerLeft}>
@@ -122,8 +130,8 @@ export default function BuyerDashboard({ onSignOut }: { onSignOut: () => void })
       </header>
 
       <div style={styles.tabRow}>
-        <button style={styles.tabBtn(tab === 'shop')} onClick={() => setTab('shop')}>Shop</button>
-        <button style={styles.tabBtn(tab === 'wallet')} onClick={() => setTab('wallet')}>Wallet</button>
+        <button style={tabBtnStyle(tab === 'shop')} onClick={() => setTab('shop')}>Shop</button>
+        <button style={tabBtnStyle(tab === 'wallet')} onClick={() => setTab('wallet')}>Wallet</button>
       </div>
 
       <main style={styles.main}>
@@ -170,7 +178,6 @@ export default function BuyerDashboard({ onSignOut }: { onSignOut: () => void })
             <div style={styles.walletCard}>
               <p style={styles.walletLabel}>Available Balance</p>
               <p style={styles.walletAmount}>₦{balance.toLocaleString()}</p>
-
               {!showTopUp ? (
                 <button style={styles.topUpBtn} onClick={() => setShowTopUp(true)}>+ Top Up Wallet</button>
               ) : (
@@ -180,7 +187,7 @@ export default function BuyerDashboard({ onSignOut }: { onSignOut: () => void })
                     {PRESET_AMOUNTS.map((amt) => (
                       <button
                         key={amt}
-                        style={styles.presetBtn(selectedAmount === amt)}
+                        style={presetBtnStyle(selectedAmount === amt)}
                         onClick={() => { setSelectedAmount(amt); setCustomAmount(''); }}
                       >
                         ₦{amt.toLocaleString()}
@@ -219,7 +226,7 @@ export default function BuyerDashboard({ onSignOut }: { onSignOut: () => void })
                   </div>
                   <div style={styles.orderRight}>
                     <p style={styles.orderPrice}>₦{o.price.toLocaleString()}</p>
-                    <span style={styles.statusBadge(o.status)}>{o.status}</span>
+                    <span style={orderStatusBadgeStyle(o.status)}>{o.status}</span>
                   </div>
                 </div>
               ))
