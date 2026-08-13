@@ -9,12 +9,6 @@ const styles: { [key: string]: React.CSSProperties } = {
   sub: { fontSize: 12, color: 'rgba(34,22,11,0.55)', marginBottom: 18 },
   label: { fontSize: 12, fontWeight: 600, marginBottom: 8, display: 'block' },
   reasonGrid: { display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 },
-  reasonBtn: (active: boolean): React.CSSProperties => ({
-    textAlign: 'left', padding: '11px 14px', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer',
-    border: active ? '2px solid #22160B' : '1px solid rgba(34,22,11,0.18)',
-    background: active ? '#22160B' : '#fff',
-    color: active ? '#F6F0E1' : '#22160B',
-  }),
   textarea: { width: '100%', padding: '11px 14px', borderRadius: 7, border: '1px solid rgba(34,22,11,0.18)', fontSize: 14, marginBottom: 16, fontFamily: "'Manrope', sans-serif", background: '#fff', minHeight: 80, resize: 'vertical' as const },
   errorText: { fontSize: 12, color: '#B23A2F', marginBottom: 12, fontWeight: 600 },
   btnRow: { display: 'flex', gap: 10 },
@@ -26,6 +20,15 @@ const styles: { [key: string]: React.CSSProperties } = {
   successText: { fontSize: 12, color: 'rgba(34,22,11,0.55)', marginBottom: 20 },
   doneBtn: { background: '#22160B', color: '#F6F0E1', fontSize: 13, fontWeight: 700, padding: '11px 24px', borderRadius: 8, border: 'none', cursor: 'pointer' },
 };
+
+function reasonBtnStyle(active: boolean): React.CSSProperties {
+  return {
+    textAlign: 'left', padding: '11px 14px', borderRadius: 7, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+    border: active ? '2px solid #22160B' : '1px solid rgba(34,22,11,0.18)',
+    background: active ? '#22160B' : '#fff',
+    color: active ? '#F6F0E1' : '#22160B',
+  };
+}
 
 export default function ReportModal({ subjectLabel, onClose }: { subjectLabel: string; onClose: () => void }) {
   const [reason, setReason] = useState<string | null>(null);
@@ -55,7 +58,7 @@ export default function ReportModal({ subjectLabel, onClose }: { subjectLabel: s
               {REASONS.map((r) => (
                 <button
                   key={r}
-                  style={styles.reasonBtn(reason === r)}
+                  style={reasonBtnStyle(reason === r)}
                   onClick={() => { setReason(r); setError(''); }}
                 >
                   {r}
@@ -89,4 +92,4 @@ export default function ReportModal({ subjectLabel, onClose }: { subjectLabel: s
       </div>
     </div>
   );
-  }
+         }
