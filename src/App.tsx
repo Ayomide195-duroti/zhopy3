@@ -1,13 +1,25 @@
 import React, { useState } from 'react';
 import Auth from './Auth';
 import Home from './Home';
+import SellerDashboard from './SellerDashboard';
+
+type Role = 'buyer' | 'seller' | 'admin';
 
 export default function App() {
-  const [loggedIn, setLoggedIn] = useState(false);
+  const [role, setRole] = useState<Role | null>(null);
 
-  if (!loggedIn) {
-    return <Auth onComplete={() => setLoggedIn(true)} />;
+  function handleSignOut() {
+    setRole(null);
   }
 
-  return <Home onSignOut={() => setLoggedIn(false)} />;
-}
+  if (!role) {
+    return <Auth onComplete={(r) => setRole(r)} />;
+  }
+
+  if (role === 'seller') {
+    return <SellerDashboard onSignOut={handleSignOut} />;
+  }
+
+  // buyer and admin both land on Home for now
+  return <Home onSignOut={handleSignOut} />;
+  }
