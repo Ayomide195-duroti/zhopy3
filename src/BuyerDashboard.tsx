@@ -240,4 +240,4 @@ export default function BuyerDashboard({ onSignOut }: { onSignOut: () => void })
       )}
     </div>
   );
-    }
+             }
