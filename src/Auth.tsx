@@ -10,13 +10,6 @@ const styles: { [key: string]: React.CSSProperties } = {
   card: { width: '100%', maxWidth: 380, background: '#fff', borderRadius: 10, border: '1px solid rgba(34,22,11,0.1)', padding: 24 },
   stepLabel: { fontSize: 11, fontWeight: 700, letterSpacing: '0.4px', textTransform: 'uppercase', color: 'rgba(34,22,11,0.45)', marginBottom: 14 },
   roleGrid: { display: 'flex', flexDirection: 'column', gap: 10 },
-  roleBtn: (active: boolean): React.CSSProperties => ({
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '14px 16px', borderRadius: 8, cursor: 'pointer',
-    border: active ? '2px solid #22160B' : '1px solid rgba(34,22,11,0.15)',
-    background: active ? '#22160B' : '#fff',
-    color: active ? '#F6F0E1' : '#22160B',
-  }),
   roleTitle: { fontSize: 14, fontWeight: 700 },
   roleDesc: { fontSize: 11, marginTop: 2, opacity: 0.65 },
   formTitle: { fontSize: 17, fontWeight: 800, marginBottom: 4 },
@@ -29,6 +22,20 @@ const styles: { [key: string]: React.CSSProperties } = {
   switchLink: { fontWeight: 700, color: '#22160B', cursor: 'pointer', textDecoration: 'underline' },
   roleBadge: { display: 'inline-block', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.3px', background: '#D6A419', color: '#22160B', padding: '3px 9px', borderRadius: 999, marginBottom: 16 },
 };
+
+function roleBtnStyle(active: boolean): React.CSSProperties {
+  return {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '14px 16px',
+    borderRadius: 8,
+    cursor: 'pointer',
+    border: active ? '2px solid #22160B' : '1px solid rgba(34,22,11,0.15)',
+    background: active ? '#22160B' : '#fff',
+    color: active ? '#F6F0E1' : '#22160B',
+  };
+}
 
 const ROLES: { id: Role; title: string; desc: string }[] = [
   { id: 'buyer', title: 'Buyer', desc: 'Shop products from verified sellers' },
@@ -53,7 +60,7 @@ export default function Auth({ onComplete }: { onComplete: () => void }) {
             <p style={styles.stepLabel}>Continue as</p>
             <div style={styles.roleGrid}>
               {ROLES.map((r) => (
-                <div key={r.id} style={styles.roleBtn(false)} onClick={() => setSelectedRole(r.id)}>
+                <div key={r.id} style={roleBtnStyle(false)} onClick={() => setSelectedRole(r.id)}>
                   <div>
                     <div style={styles.roleTitle}>{r.title}</div>
                     <div style={styles.roleDesc}>{r.desc}</div>
@@ -102,4 +109,4 @@ export default function Auth({ onComplete }: { onComplete: () => void }) {
       </div>
     </div>
   );
-}
+              }
