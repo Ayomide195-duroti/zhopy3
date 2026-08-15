@@ -21,12 +21,6 @@ const styles: { [key: string]: React.CSSProperties } = {
   label: { fontSize: 12, fontWeight: 600, marginBottom: 6, display: 'block' },
   input: { width: '100%', padding: '11px 14px', borderRadius: 7, border: '1px solid rgba(34,22,11,0.18)', fontSize: 14, marginBottom: 14, fontFamily: "'Manrope', sans-serif", background: '#F6F0E1' },
   roleRow: { display: 'flex', gap: 8, marginBottom: 14 },
-  roleBtn: (active: boolean): React.CSSProperties => ({
-    flex: 1, textAlign: 'center', padding: '11px 0', borderRadius: 7, fontSize: 13, fontWeight: 700, cursor: 'pointer',
-    border: active ? '2px solid #22160B' : '1px solid rgba(34,22,11,0.18)',
-    background: active ? '#22160B' : '#fff',
-    color: active ? '#F6F0E1' : '#22160B',
-  }),
   submitBtn: { width: '100%', background: '#22160B', color: '#F6F0E1', fontSize: 14, fontWeight: 700, padding: '13px', borderRadius: 8, border: 'none', cursor: 'pointer', marginTop: 6 },
   submitBtnDisabled: { opacity: 0.5, cursor: 'not-allowed' },
   switchRow: { fontSize: 12, textAlign: 'center', marginTop: 18, color: 'rgba(34,22,11,0.6)' },
@@ -35,6 +29,21 @@ const styles: { [key: string]: React.CSSProperties } = {
   adminLink: { fontSize: 10, color: 'rgba(34,22,11,0.25)', marginTop: 28, cursor: 'pointer' },
   backLink: { fontSize: 12, color: 'rgba(34,22,11,0.55)', marginTop: 14, textAlign: 'center', cursor: 'pointer', textDecoration: 'underline' },
 };
+
+function roleBtnStyle(active: boolean): React.CSSProperties {
+  return {
+    flex: 1,
+    textAlign: 'center',
+    padding: '11px 0',
+    borderRadius: 7,
+    fontSize: 13,
+    fontWeight: 700,
+    cursor: 'pointer',
+    border: active ? '2px solid #22160B' : '1px solid rgba(34,22,11,0.18)',
+    background: active ? '#22160B' : '#fff',
+    color: active ? '#F6F0E1' : '#22160B',
+  };
+}
 
 export default function Auth({ onComplete }: { onComplete: (role: Role) => void }) {
   const [view, setView] = useState<View>('login');
@@ -152,8 +161,8 @@ export default function Auth({ onComplete }: { onComplete: (role: Role) => void 
             {error && <p style={styles.errorText}>{error}</p>}
 
             <div style={styles.roleRow}>
-              <div style={styles.roleBtn(signupRole === 'buyer')} onClick={() => setSignupRole('buyer')}>Buyer</div>
-              <div style={styles.roleBtn(signupRole === 'seller')} onClick={() => setSignupRole('seller')}>Seller</div>
+              <div style={roleBtnStyle(signupRole === 'buyer')} onClick={() => setSignupRole('buyer')}>Buyer</div>
+              <div style={roleBtnStyle(signupRole === 'seller')} onClick={() => setSignupRole('seller')}>Seller</div>
             </div>
 
             <label style={styles.label}>Full name</label>
@@ -213,4 +222,4 @@ export default function Auth({ onComplete }: { onComplete: (role: Role) => void 
       )}
     </div>
   );
-      }
+            }
