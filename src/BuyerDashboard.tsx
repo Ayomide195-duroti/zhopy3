@@ -3,7 +3,7 @@ import { collection, query, orderBy, onSnapshot, doc, getDoc, setDoc, updateDoc 
 import { db, auth } from './firebase';
 import ReportModal from './ReportModal';
 
-type Product = { id: string; name: string; price: string; category: string; sellerEmail: string };
+type Product = { id: string; name: string; price: string; category: string; sellerEmail: string; imageUrl?: string };
 
 const CATEGORIES = ['All', 'Phones', 'Fashion', 'Home & Living', 'Electronics', 'Beauty', 'Groceries'];
 const PRESET_AMOUNTS = [1000, 5000, 10000, 25000];
@@ -24,6 +24,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   grid: { display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 },
   card: { background: '#fff', borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(34,22,11,0.1)' },
   imgWrap: { aspectRatio: '1/1', background: 'rgba(34,22,11,0.05)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28 },
+  productImg: { width: '100%', height: '100%', objectFit: 'cover' as const },
   cardBody: { padding: '10px 12px 12px' },
   sellerTag: { fontSize: 10, fontWeight: 600, letterSpacing: '0.3px', color: 'rgba(34,22,11,0.42)', marginBottom: 4, textTransform: 'uppercase' },
   prodName: { fontSize: 13, fontWeight: 700, lineHeight: 1.3, marginBottom: 6 },
@@ -127,6 +128,7 @@ export default function BuyerDashboard({ onSignOut }: { onSignOut: () => void })
         price: d.data().price,
         category: d.data().category,
         sellerEmail: d.data().sellerEmail || 'Zhopy seller',
+        imageUrl: d.data().imageUrl,
       }));
       setProducts(list);
     });
@@ -197,7 +199,9 @@ export default function BuyerDashboard({ onSignOut }: { onSignOut: () => void })
               <div style={styles.grid}>
                 {filteredProducts.map((p) => (
                   <div key={p.id} style={styles.card}>
-                    <div style={styles.imgWrap}>📦</div>
+                    <div style={styles.imgWrap}>
+                      {p.imageUrl ? <img src={p.imageUrl} alt={p.name} style={styles.productImg} /> : '📦'}
+                    </div>
                     <div style={styles.cardBody}>
                       <p style={styles.sellerTag}>{p.sellerEmail}</p>
                       <p style={styles.prodName}>{p.name}</p>
@@ -274,4 +278,4 @@ export default function BuyerDashboard({ onSignOut }: { onSignOut: () => void })
       )}
     </div>
   );
-}
+    }
