@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { collection, addDoc, query, where, onSnapshot, orderBy } from 'firebase/firestore';
-import { db, auth } from './firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, auth, storage } from './firebase';
 import ReportModal from './ReportModal';
 
 type Product = {
@@ -9,7 +10,10 @@ type Product = {
   price: string;
   category: string;
   description: string;
+  imageUrl?: string;
 };
+
+const MAX_IMAGE_MB = 5;
 
 const CATEGORIES = ['Phones', 'Fashion', 'Home & Living', 'Electronics', 'Beauty', 'Groceries'];
 
@@ -34,8 +38,12 @@ const styles: { [key: string]: React.CSSProperties } = {
   input: { width: '100%', padding: '11px 14px', borderRadius: 7, border: '1px solid rgba(34,22,11,0.18)', fontSize: 14, marginBottom: 14, fontFamily: "'Manrope', sans-serif", background: '#F6F0E1' },
   textarea: { width: '100%', padding: '11px 14px', borderRadius: 7, border: '1px solid rgba(34,22,11,0.18)', fontSize: 14, marginBottom: 14, fontFamily: "'Manrope', sans-serif", background: '#F6F0E1', minHeight: 80, resize: 'vertical' as const },
   select: { width: '100%', padding: '11px 14px', borderRadius: 7, border: '1px solid rgba(34,22,11,0.18)', fontSize: 14, marginBottom: 14, fontFamily: "'Manrope', sans-serif", background: '#F6F0E1' },
-  uploadBox: { border: '1.5px dashed rgba(34,22,11,0.25)', borderRadius: 8, padding: '24px 16px', textAlign: 'center', marginBottom: 14, background: '#F6F0E1' },
+  uploadBox: { border: '1.5px dashed rgba(34,22,11,0.25)', borderRadius: 8, padding: '24px 16px', textAlign: 'center', marginBottom: 14, background: '#F6F0E1', cursor: 'pointer', position: 'relative', overflow: 'hidden' },
   uploadText: { fontSize: 12, color: 'rgba(34,22,11,0.5)', marginTop: 4 },
+  previewImg: { width: '100%', maxHeight: 180, objectFit: 'contain' as const, borderRadius: 6, marginBottom: 8 },
+  removeImgBtn: { fontSize: 11, fontWeight: 700, color: '#B23A2F', background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline' },
+  thumbWrap: { width: 44, height: 44, borderRadius: 6, overflow: 'hidden', background: 'rgba(34,22,11,0.05)', flexShrink: 0, marginRight: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 },
+  thumbImg: { width: '100%', height: '100%', objectFit: 'cover' as const },
   submitBtn: { width: '100%', background: '#D6A419', color: '#22160B', fontSize: 14, fontWeight: 700, padding: '13px', borderRadius: 8, border: 'none', cursor: 'pointer' },
   submitBtnDisabled: { opacity: 0.5, cursor: 'not-allowed' },
   listSection: {},
@@ -58,6 +66,33 @@ export default function SellerDashboard({ onSignOut }: { onSignOut: () => void }
   const [showSuccess, setShowSuccess] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadPct, setUploadPct] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setError('Please select an image file.');
+      return;
+    }
+    if (file.size > MAX_IMAGE_MB * 1024 * 1024) {
+      setError(`Image must be under ${MAX_IMAGE_MB}MB.`);
+      return;
+    }
+    setError('');
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  }
+
+  function clearImage(e: React.MouseEvent) {
+    e.stopPropagation();
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
 
   useEffect(() => {
     const uid = auth.currentUser?.uid;
@@ -74,6 +109,7 @@ export default function SellerDashboard({ onSignOut }: { onSignOut: () => void }
         price: d.data().price,
         category: d.data().category,
         description: d.data().description,
+        imageUrl: d.data().imageUrl,
       }));
       setProducts(list);
     });
@@ -101,11 +137,22 @@ export default function SellerDashboard({ onSignOut }: { onSignOut: () => void }
 
     setSaving(true);
     try {
+      let imageUrl = '';
+      if (imageFile) {
+        const path = `products/${uid}/${Date.now()}-${imageFile.name}`;
+        const storageRef = ref(storage, path);
+        setUploadPct(50);
+        await uploadBytes(storageRef, imageFile);
+        imageUrl = await getDownloadURL(storageRef);
+        setUploadPct(100);
+      }
+
       await addDoc(collection(db, 'products'), {
         name,
         price,
         category,
         description,
+        imageUrl,
         sellerId: uid,
         sellerEmail: auth.currentUser?.email || '',
         createdAt: new Date().toISOString(),
@@ -113,12 +160,14 @@ export default function SellerDashboard({ onSignOut }: { onSignOut: () => void }
       setName('');
       setPrice('');
       setDescription('');
+      clearImage({ stopPropagation: () => {} } as React.MouseEvent);
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (err: any) {
       setError('Failed to post product. Please try again.');
     } finally {
       setSaving(false);
+      setUploadPct(0);
     }
   }
 
@@ -153,9 +202,27 @@ export default function SellerDashboard({ onSignOut }: { onSignOut: () => void }
 
             {error && <p style={styles.errorText}>{error}</p>}
 
-            <div style={styles.uploadBox}>
-              <div style={{ fontSize: 22 }}>📷</div>
-              <p style={styles.uploadText}>Photo upload coming soon</p>
+            <div style={styles.uploadBox} onClick={() => fileInputRef.current?.click()}>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileSelect}
+                style={{ display: 'none' }}
+              />
+              {imagePreview ? (
+                <>
+                  <img src={imagePreview} alt="Product preview" style={styles.previewImg} />
+                  <button type="button" style={styles.removeImgBtn} onClick={clearImage}>Remove photo</button>
+                </>
+              ) : (
+                <>
+                  <div style={{ fontSize: 22 }}>📷</div>
+                  <p style={styles.uploadText}>
+                    {saving && uploadPct > 0 ? `Uploading... ${uploadPct}%` : 'Tap to add a product photo'}
+                  </p>
+                </>
+              )}
             </div>
 
             <label style={styles.label}>Product name</label>
@@ -209,9 +276,14 @@ export default function SellerDashboard({ onSignOut }: { onSignOut: () => void }
             ) : (
               products.map((p) => (
                 <div key={p.id} style={styles.productRow}>
-                  <div>
-                    <p style={styles.productName}>{p.name}</p>
-                    <p style={styles.productMeta}>{p.category}</p>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <div style={styles.thumbWrap}>
+                      {p.imageUrl ? <img src={p.imageUrl} alt={p.name} style={styles.thumbImg} /> : '📦'}
+                    </div>
+                    <div>
+                      <p style={styles.productName}>{p.name}</p>
+                      <p style={styles.productMeta}>{p.category}</p>
+                    </div>
                   </div>
                   <span style={styles.productPrice}>₦{Number(p.price).toLocaleString()}</span>
                 </div>
@@ -226,4 +298,4 @@ export default function SellerDashboard({ onSignOut }: { onSignOut: () => void }
       )}
     </div>
   );
-        }
+    }
