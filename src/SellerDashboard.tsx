@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { collection, addDoc, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { db, auth } from './firebase';
+import ReportModal from './ReportModal';
 
 type Product = {
-  id: number;
+  id: string;
   name: string;
   price: string;
   category: string;
@@ -18,7 +21,9 @@ const styles: { [key: string]: React.CSSProperties } = {
   roleTag: { background: '#D6A419', color: '#22160B', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', padding: '3px 10px', borderRadius: 999 },
   signOutBtn: { fontSize: 11, fontWeight: 600, color: 'rgba(246,240,225,0.6)', background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline' },
   main: { maxWidth: 900, margin: '0 auto', padding: '24px 16px 48px' },
-  pageTitle: { fontSize: 18, fontWeight: 800, marginBottom: 4 },
+  pageTitleRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 },
+  pageTitle: { fontSize: 18, fontWeight: 800 },
+  reportLink: { fontSize: 12, fontWeight: 700, color: '#B23A2F', background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline' },
   pageSub: { fontSize: 13, color: 'rgba(34,22,11,0.55)', marginBottom: 24 },
   successBanner: { background: '#D6A419', color: '#22160B', padding: '12px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700, marginBottom: 20 },
   layout: { display: 'flex', flexDirection: 'column', gap: 24 },
@@ -32,6 +37,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   uploadBox: { border: '1.5px dashed rgba(34,22,11,0.25)', borderRadius: 8, padding: '24px 16px', textAlign: 'center', marginBottom: 14, background: '#F6F0E1' },
   uploadText: { fontSize: 12, color: 'rgba(34,22,11,0.5)', marginTop: 4 },
   submitBtn: { width: '100%', background: '#D6A419', color: '#22160B', fontSize: 14, fontWeight: 700, padding: '13px', borderRadius: 8, border: 'none', cursor: 'pointer' },
+  submitBtnDisabled: { opacity: 0.5, cursor: 'not-allowed' },
   listSection: {},
   listTitle: { fontSize: 14, fontWeight: 800, marginBottom: 12 },
   productRow: { background: '#fff', borderRadius: 8, border: '1px solid rgba(34,22,11,0.1)', padding: '14px 16px', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
@@ -50,8 +56,31 @@ export default function SellerDashboard({ onSignOut }: { onSignOut: () => void }
   const [description, setDescription] = useState('');
   const [error, setError] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showReport, setShowReport] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  function handlePost(e: React.FormEvent) {
+  useEffect(() => {
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    const q = query(
+      collection(db, 'products'),
+      where('sellerId', '==', uid),
+      orderBy('createdAt', 'desc')
+    );
+    const unsub = onSnapshot(q, (snapshot) => {
+      const list: Product[] = snapshot.docs.map((d) => ({
+        id: d.id,
+        name: d.data().name,
+        price: d.data().price,
+        category: d.data().category,
+        description: d.data().description,
+      }));
+      setProducts(list);
+    });
+    return () => unsub();
+  }, []);
+
+  async function handlePost(e: React.FormEvent) {
     e.preventDefault();
     setError('');
 
@@ -64,12 +93,33 @@ export default function SellerDashboard({ onSignOut }: { onSignOut: () => void }
       return;
     }
 
-    setProducts([{ id: Date.now(), name, price, category, description }, ...products]);
-    setName('');
-    setPrice('');
-    setDescription('');
-    setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 3000);
+    const uid = auth.currentUser?.uid;
+    if (!uid) {
+      setError('You must be signed in to post a product.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await addDoc(collection(db, 'products'), {
+        name,
+        price,
+        category,
+        description,
+        sellerId: uid,
+        sellerEmail: auth.currentUser?.email || '',
+        createdAt: new Date().toISOString(),
+      });
+      setName('');
+      setPrice('');
+      setDescription('');
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000);
+    } catch (err: any) {
+      setError('Failed to post product. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -87,7 +137,10 @@ export default function SellerDashboard({ onSignOut }: { onSignOut: () => void }
       </header>
 
       <main style={styles.main}>
-        <p style={styles.pageTitle}>Seller Dashboard</p>
+        <div style={styles.pageTitleRow}>
+          <p style={styles.pageTitle}>Seller Dashboard</p>
+          <button style={styles.reportLink} onClick={() => setShowReport(true)}>Report an issue</button>
+        </div>
         <p style={styles.pageSub}>Post new products and manage your listings.</p>
 
         {showSuccess && (
@@ -137,7 +190,13 @@ export default function SellerDashboard({ onSignOut }: { onSignOut: () => void }
               onChange={(e) => setDescription(e.target.value)}
             />
 
-            <button style={styles.submitBtn} type="submit">Post product</button>
+            <button
+              style={saving ? { ...styles.submitBtn, ...styles.submitBtnDisabled } : styles.submitBtn}
+              type="submit"
+              disabled={saving}
+            >
+              {saving ? 'Posting...' : 'Post product'}
+            </button>
           </form>
 
           <div style={styles.listSection}>
@@ -161,6 +220,10 @@ export default function SellerDashboard({ onSignOut }: { onSignOut: () => void }
           </div>
         </div>
       </main>
+
+      {showReport && (
+        <ReportModal subjectLabel="General issue" onClose={() => setShowReport(false)} />
+      )}
     </div>
   );
-        }
+            }
