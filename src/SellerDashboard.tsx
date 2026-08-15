@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { collection, addDoc, query, where, onSnapshot, orderBy } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, auth, storage } from './firebase';
+import { db, auth } from './firebase';
 import ReportModal from './ReportModal';
 
 type Product = {
@@ -14,6 +13,67 @@ type Product = {
 };
 
 const MAX_IMAGE_MB = 5;
+const MAX_DIMENSION = 1200;
+const COMPRESS_QUALITY = 0.72;
+const CLOUDINARY_CLOUD_NAME = 'm19y1jnt';
+const CLOUDINARY_UPLOAD_PRESET = 'ml_default';
+
+async function uploadToCloudinary(file: File): Promise<string> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+    { method: 'POST', body: formData }
+  );
+
+  if (!res.ok) {
+    throw new Error('Cloudinary upload failed');
+  }
+
+  const data = await res.json();
+  return data.secure_url as string;
+}
+
+function compressImage(file: File): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onload = () => {
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+          if (width > height) {
+            height = Math.round((height * MAX_DIMENSION) / width);
+            width = MAX_DIMENSION;
+          } else {
+            width = Math.round((width * MAX_DIMENSION) / height);
+            height = MAX_DIMENSION;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { resolve(file); return; }
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) { resolve(file); return; }
+            resolve(new File([blob], file.name.replace(/\.\w+$/, '.jpg'), { type: 'image/jpeg' }));
+          },
+          'image/jpeg',
+          COMPRESS_QUALITY
+        );
+      };
+      img.onerror = () => reject(new Error('Could not read image'));
+      img.src = reader.result as string;
+    };
+    reader.onerror = () => reject(new Error('Could not read file'));
+    reader.readAsDataURL(file);
+  });
+}
 
 const CATEGORIES = ['Phones', 'Fashion', 'Home & Living', 'Electronics', 'Beauty', 'Groceries'];
 
@@ -139,11 +199,10 @@ export default function SellerDashboard({ onSignOut }: { onSignOut: () => void }
     try {
       let imageUrl = '';
       if (imageFile) {
-        const path = `products/${uid}/${Date.now()}-${imageFile.name}`;
-        const storageRef = ref(storage, path);
-        setUploadPct(50);
-        await uploadBytes(storageRef, imageFile);
-        imageUrl = await getDownloadURL(storageRef);
+        setUploadPct(10);
+        const compressed = await compressImage(imageFile);
+        setUploadPct(40);
+        imageUrl = await uploadToCloudinary(compressed);
         setUploadPct(100);
       }
 
@@ -298,4 +357,4 @@ export default function SellerDashboard({ onSignOut }: { onSignOut: () => void }
       )}
     </div>
   );
-    }
+          }
