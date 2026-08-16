@@ -23,27 +23,61 @@ const styles: React.CSSProperties = {
 export default function App() {
   const [role, setRole] = useState<Role | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
+  const [debugMsg, setDebugMsg] = useState('');
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, async (user) => {
-      try {
-        if (user) {
-          const snap = await getDoc(doc(db, 'users', user.uid));
-          if (snap.exists() && snap.data().role) {
-            setRole(snap.data().role as Role);
-          } else {
-            setRole(null);
-          }
-        } else {
-          setRole(null);
-        }
-      } catch (err) {
-        setRole(null);
-      } finally {
+    let settled = false;
+
+    const timeoutId = setTimeout(() => {
+      if (!settled) {
+        setDebugMsg('Timed out waiting for Firebase to respond. Check your Firebase config / authDomain.');
         setCheckingSession(false);
       }
-    });
-    return () => unsub();
+    }, 7000);
+
+    let unsub = () => {};
+    try {
+      unsub = onAuthStateChanged(
+        auth,
+        async (user) => {
+          settled = true;
+          clearTimeout(timeoutId);
+          try {
+            if (user) {
+              const snap = await getDoc(doc(db, 'users', user.uid));
+              if (snap.exists() && snap.data().role) {
+                setRole(snap.data().role as Role);
+              } else {
+                setRole(null);
+              }
+            } else {
+              setRole(null);
+            }
+          } catch (err: any) {
+            setDebugMsg('Firestore lookup failed: ' + (err?.message || String(err)));
+            setRole(null);
+          } finally {
+            setCheckingSession(false);
+          }
+        },
+        (err) => {
+          settled = true;
+          clearTimeout(timeoutId);
+          setDebugMsg('Auth listener error: ' + (err?.message || String(err)));
+          setCheckingSession(false);
+        }
+      );
+    } catch (err: any) {
+      settled = true;
+      clearTimeout(timeoutId);
+      setDebugMsg('Failed to start auth listener: ' + (err?.message || String(err)));
+      setCheckingSession(false);
+    }
+
+    return () => {
+      clearTimeout(timeoutId);
+      unsub();
+    };
   }, []);
 
   async function handleSignOut() {
@@ -56,7 +90,16 @@ export default function App() {
   }
 
   if (!role) {
-    return <Auth onComplete={(r) => setRole(r)} />;
+    return (
+      <>
+        <Auth onComplete={(r) => setRole(r)} />
+        {debugMsg && (
+          <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#B23A2F', color: '#fff', fontSize: 11, padding: 8, wordBreak: 'break-word' }}>
+            DEBUG: {debugMsg}
+          </div>
+        )}
+      </>
+    );
   }
 
   if (role === 'seller') {
@@ -68,4 +111,4 @@ export default function App() {
   }
 
   return <BuyerDashboard onSignOut={handleSignOut} />;
-}
+    }
