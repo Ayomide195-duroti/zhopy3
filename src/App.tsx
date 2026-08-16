@@ -11,6 +11,7 @@ import Nav from './Nav';
 import BecomeSeller from './BecomeSeller';
 import Messages from './Messages';
 import Profile from './Profile';
+import Explore from './Explore';
 
 type Role = 'buyer' | 'seller' | 'admin';
 
@@ -107,10 +108,7 @@ export default function App() {
           path="/"
           element={role === 'seller' ? <SellerDashboard onSignOut={handleSignOut} /> : <BuyerDashboard onSignOut={handleSignOut} />}
         />
-        <Route
-          path="/explore"
-          element={<BuyerDashboard onSignOut={handleSignOut} />}
-        />
+        <Route path="/explore" element={<Explore />} />
         <Route
           path="/sell"
           element={role === 'seller' ? <SellerDashboard onSignOut={handleSignOut} /> : <BecomeSeller onBecomeSeller={() => setRole('seller')} />}
@@ -121,6 +119,5 @@ export default function App() {
       </Routes>
       <Nav role={role} />
     </BrowserRouter>
-    );
-}
-  
+  );
+        }
