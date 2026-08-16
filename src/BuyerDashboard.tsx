@@ -48,6 +48,21 @@ const styles: { [key: string]: React.CSSProperties } = {
   reportLink: { fontSize: 12, fontWeight: 700, color: '#B23A2F', background: 'transparent', border: 'none', cursor: 'pointer', textDecoration: 'underline' },
   emptyState: { textAlign: 'center', padding: '32px 20px', border: '1px dashed rgba(34,22,11,0.2)', borderRadius: 8, background: '#fff' },
   emptyText: { fontSize: 13, color: 'rgba(34,22,11,0.55)' },
+  menuBtn: { background: 'transparent', border: 'none', color: '#F6F0E1', fontSize: 22, cursor: 'pointer', padding: 4, lineHeight: 1 },
+  menuOverlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100 },
+  menuPanel: { position: 'fixed', top: 0, right: 0, bottom: 0, width: 240, background: '#22160B', zIndex: 101, padding: '20px 0', display: 'flex', flexDirection: 'column' },
+  menuItem: { color: '#F6F0E1', fontSize: 14, fontWeight: 600, padding: '14px 20px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 },
+  menuItemActive: { background: 'rgba(214,164,25,0.15)', color: '#D6A419' },
+  menuDivider: { height: 1, background: 'rgba(246,240,225,0.1)', margin: '8px 0' },
+  formCard: { background: '#fff', borderRadius: 10, border: '1px solid rgba(34,22,11,0.1)', padding: 20 },
+  formTitle: { fontSize: 14, fontWeight: 800, marginBottom: 16 },
+  label: { fontSize: 12, fontWeight: 600, marginBottom: 6, display: 'block' },
+  input: { width: '100%', padding: '11px 14px', borderRadius: 7, border: '1px solid rgba(34,22,11,0.18)', fontSize: 14, marginBottom: 14, fontFamily: "'Manrope', sans-serif", background: '#F6F0E1' },
+  submitBtn: { width: '100%', background: '#D6A419', color: '#22160B', fontSize: 14, fontWeight: 700, padding: '13px', borderRadius: 8, border: 'none', cursor: 'pointer' },
+  submitBtnDisabled: { opacity: 0.5, cursor: 'not-allowed' },
+  errorText: { fontSize: 12, color: '#B23A2F', marginBottom: 12, fontWeight: 600 },
+  successBannerSmall: { background: '#D6A419', color: '#22160B', padding: '10px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, marginBottom: 16 },
+  profileField: { marginBottom: 4 },
 };
 
 function tabBtnStyle(active: boolean): React.CSSProperties {
@@ -93,7 +108,8 @@ function presetBtnStyle(active: boolean): React.CSSProperties {
 }
 
 export default function BuyerDashboard({ onSignOut }: { onSignOut: () => void }) {
-  const [tab, setTab] = useState<'shop' | 'wallet'>('shop');
+  const [tab, setTab] = useState<'shop' | 'wallet' | 'profile'>('shop');
+  const [menuOpen, setMenuOpen] = useState(false);
   const [activeCat, setActiveCat] = useState('All');
   const [balance, setBalance] = useState(0);
   const [products, setProducts] = useState<Product[]>([]);
@@ -103,6 +119,13 @@ export default function BuyerDashboard({ onSignOut }: { onSignOut: () => void })
   const [showSuccess, setShowSuccess] = useState(false);
   const [showReport, setShowReport] = useState(false);
   const [funding, setFunding] = useState(false);
+
+  const [username, setUsername] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSuccess, setProfileSuccess] = useState(false);
+  const [profileError, setProfileError] = useState('');
 
   useEffect(() => {
     const uid = auth.currentUser?.uid;
@@ -134,6 +157,50 @@ export default function BuyerDashboard({ onSignOut }: { onSignOut: () => void })
     });
     return () => unsub();
   }, []);
+
+  useEffect(() => {
+    async function loadProfile() {
+      const uid = auth.currentUser?.uid;
+      if (!uid) return;
+      setProfileLoading(true);
+      try {
+        const snap = await getDoc(doc(db, 'users', uid));
+        if (snap.exists()) {
+          const data = snap.data();
+          setUsername(data.username || '');
+          setFullName(data.name || '');
+        }
+      } finally {
+        setProfileLoading(false);
+      }
+    }
+    loadProfile();
+  }, []);
+
+  async function handleSaveProfile(e: React.FormEvent) {
+    e.preventDefault();
+    setProfileError('');
+    if (!username.trim()) {
+      setProfileError('Please choose a username.');
+      return;
+    }
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    setProfileSaving(true);
+    try {
+      await setDoc(
+        doc(db, 'users', uid),
+        { username: username.trim(), name: fullName },
+        { merge: true }
+      );
+      setProfileSuccess(true);
+      setTimeout(() => setProfileSuccess(false), 3000);
+    } catch (err: any) {
+      setProfileError('Failed to save profile. Please try again.');
+    } finally {
+      setProfileSaving(false);
+    }
+  }
 
   const filteredProducts = activeCat === 'All' ? products : products.filter((p) => p.category === activeCat);
 
@@ -170,15 +237,43 @@ export default function BuyerDashboard({ onSignOut }: { onSignOut: () => void })
           </div>
           <div style={styles.headerRight}>
             <span style={styles.miniWallet}>₦{balance.toLocaleString()}</span>
-            <button style={styles.signOutBtn} onClick={onSignOut}>Sign out</button>
+            <button style={styles.menuBtn} onClick={() => setMenuOpen(true)}>☰</button>
           </div>
         </div>
       </header>
 
-      <div style={styles.tabRow}>
-        <button style={tabBtnStyle(tab === 'shop')} onClick={() => setTab('shop')}>Shop</button>
-        <button style={tabBtnStyle(tab === 'wallet')} onClick={() => setTab('wallet')}>Wallet</button>
-      </div>
+      {menuOpen && (
+        <>
+          <div style={styles.menuOverlay} onClick={() => setMenuOpen(false)} />
+          <div style={styles.menuPanel}>
+            <button
+              style={tab === 'shop' ? { ...styles.menuItem, ...styles.menuItemActive } : styles.menuItem}
+              onClick={() => { setTab('shop'); setMenuOpen(false); }}
+            >
+              🛍️ Shop
+            </button>
+            <button
+              style={tab === 'wallet' ? { ...styles.menuItem, ...styles.menuItemActive } : styles.menuItem}
+              onClick={() => { setTab('wallet'); setMenuOpen(false); }}
+            >
+              💰 Wallet
+            </button>
+            <button
+              style={tab === 'profile' ? { ...styles.menuItem, ...styles.menuItemActive } : styles.menuItem}
+              onClick={() => { setTab('profile'); setMenuOpen(false); }}
+            >
+              👤 Profile
+            </button>
+            <div style={styles.menuDivider} />
+            <button style={styles.menuItem} onClick={() => { setShowReport(true); setMenuOpen(false); }}>
+              🚩 Report an issue
+            </button>
+            <button style={styles.menuItem} onClick={onSignOut}>
+              🚪 Sign out
+            </button>
+          </div>
+        </>
+      )}
 
       <main style={styles.main}>
         {tab === 'shop' && (
@@ -271,6 +366,50 @@ export default function BuyerDashboard({ onSignOut }: { onSignOut: () => void })
             </div>
           </>
         )}
+
+        {tab === 'profile' && (
+          <>
+            <div style={styles.sectionHeadRow}>
+              <p style={{ ...styles.sectionTitle, marginBottom: 0 }}>Your Profile</p>
+            </div>
+
+            {profileSuccess && <div style={styles.successBannerSmall}>✓ Profile saved!</div>}
+
+            <form style={styles.formCard} onSubmit={handleSaveProfile}>
+              {profileError && <p style={styles.errorText}>{profileError}</p>}
+
+              <div style={styles.profileField}>
+                <label style={styles.label}>Username</label>
+                <input
+                  style={styles.input}
+                  placeholder="e.g. ayo_shops"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  disabled={profileLoading}
+                />
+              </div>
+
+              <div style={styles.profileField}>
+                <label style={styles.label}>Full name</label>
+                <input
+                  style={styles.input}
+                  placeholder="e.g. Ayomide Duroti"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  disabled={profileLoading}
+                />
+              </div>
+
+              <button
+                style={profileSaving ? { ...styles.submitBtn, ...styles.submitBtnDisabled } : styles.submitBtn}
+                type="submit"
+                disabled={profileSaving || profileLoading}
+              >
+                {profileSaving ? 'Saving...' : 'Save profile'}
+              </button>
+            </form>
+          </>
+        )}
       </main>
 
       {showReport && (
@@ -278,4 +417,5 @@ export default function BuyerDashboard({ onSignOut }: { onSignOut: () => void })
       )}
     </div>
   );
-    }
+      }
+    
