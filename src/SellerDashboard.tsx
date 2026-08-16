@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { collection, addDoc, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, addDoc, query, where, onSnapshot, orderBy, doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, auth } from './firebase';
 import ReportModal from './ReportModal';
 
@@ -10,6 +10,13 @@ type Product = {
   category: string;
   description: string;
   imageUrl?: string;
+  stock: number;
+};
+
+type SellerProfile = {
+  name: string;
+  location: string;
+  phone: string;
 };
 
 const MAX_IMAGE_MB = 5;
@@ -119,12 +126,26 @@ const styles: { [key: string]: React.CSSProperties } = {
   productPrice: { fontSize: 13, fontWeight: 800 },
   emptyState: { textAlign: 'center', padding: '32px 20px', border: '1px dashed rgba(34,22,11,0.2)', borderRadius: 8, background: '#fff' },
   emptyText: { fontSize: 13, color: 'rgba(34,22,11,0.55)' },
+  tabRow: { display: 'flex', gap: 0, marginBottom: 20, borderBottom: '1px solid rgba(34,22,11,0.1)' },
+  stockRow: { display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 },
+  stockBadge: { fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999 },
+  successBannerSmall: { background: '#D6A419', color: '#22160B', padding: '10px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, marginBottom: 16 },
+  menuBtn: { background: 'transparent', border: 'none', color: '#F6F0E1', fontSize: 22, cursor: 'pointer', padding: 4, lineHeight: 1 },
+  menuOverlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 100 },
+  menuPanel: { position: 'fixed', top: 0, right: 0, bottom: 0, width: 240, background: '#22160B', zIndex: 101, padding: '20px 0', display: 'flex', flexDirection: 'column' },
+  menuItem: { color: '#F6F0E1', fontSize: 14, fontWeight: 600, padding: '14px 20px', background: 'transparent', border: 'none', textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 },
+  menuItemActive: { background: 'rgba(214,164,25,0.15)', color: '#D6A419' },
+  menuDivider: { height: 1, background: 'rgba(246,240,225,0.1)', margin: '8px 0' },
+  profileField: { marginBottom: 4 },
 };
 
 export default function SellerDashboard({ onSignOut }: { onSignOut: () => void }) {
+  const [view, setView] = useState<'products' | 'profile'>('products');
+  const [menuOpen, setMenuOpen] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
+  const [stock, setStock] = useState('1');
   const [category, setCategory] = useState(CATEGORIES[0]);
   const [description, setDescription] = useState('');
   const [error, setError] = useState('');
@@ -135,6 +156,14 @@ export default function SellerDashboard({ onSignOut }: { onSignOut: () => void }
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadPct, setUploadPct] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [profileName, setProfileName] = useState('');
+  const [profileLocation, setProfileLocation] = useState('');
+  const [profilePhone, setProfilePhone] = useState('');
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSuccess, setProfileSuccess] = useState(false);
+  const [profileError, setProfileError] = useState('');
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -175,11 +204,53 @@ export default function SellerDashboard({ onSignOut }: { onSignOut: () => void }
         category: d.data().category,
         description: d.data().description,
         imageUrl: d.data().imageUrl,
+        stock: typeof d.data().stock === 'number' ? d.data().stock : 0,
       }));
       setProducts(list);
     });
     return () => unsub();
   }, []);
+
+  useEffect(() => {
+    async function loadProfile() {
+      const uid = auth.currentUser?.uid;
+      if (!uid) return;
+      setProfileLoading(true);
+      try {
+        const snap = await getDoc(doc(db, 'users', uid));
+        if (snap.exists()) {
+          const data = snap.data();
+          setProfileName(data.name || '');
+          setProfileLocation(data.location || '');
+          setProfilePhone(data.phone || '');
+        }
+      } finally {
+        setProfileLoading(false);
+      }
+    }
+    loadProfile();
+  }, []);
+
+  async function handleSaveProfile(e: React.FormEvent) {
+    e.preventDefault();
+    setProfileError('');
+    const uid = auth.currentUser?.uid;
+    if (!uid) return;
+    setProfileSaving(true);
+    try {
+      await setDoc(
+        doc(db, 'users', uid),
+        { name: profileName, location: profileLocation, phone: profilePhone },
+        { merge: true }
+      );
+      setProfileSuccess(true);
+      setTimeout(() => setProfileSuccess(false), 3000);
+    } catch (err: any) {
+      setProfileError('Failed to save profile. Please try again.');
+    } finally {
+      setProfileSaving(false);
+    }
+  }
 
   async function handlePost(e: React.FormEvent) {
     e.preventDefault();
@@ -191,6 +262,11 @@ export default function SellerDashboard({ onSignOut }: { onSignOut: () => void }
     }
     if (!price.trim()) {
       setError('Please enter a price.');
+      return;
+    }
+    const stockNum = Number(stock);
+    if (!stock.trim() || isNaN(stockNum) || stockNum < 0) {
+      setError('Please enter how many units are available.');
       return;
     }
 
@@ -217,12 +293,14 @@ export default function SellerDashboard({ onSignOut }: { onSignOut: () => void }
         category,
         description,
         imageUrl,
+        stock: stockNum,
         sellerId: uid,
         sellerEmail: auth.currentUser?.email || '',
         createdAt: new Date().toISOString(),
       });
       setName('');
       setPrice('');
+      setStock('1');
       setDescription('');
       clearImage({ stopPropagation: () => {} } as React.MouseEvent);
       setShowSuccess(true);
@@ -245,116 +323,221 @@ export default function SellerDashboard({ onSignOut }: { onSignOut: () => void }
             <span style={styles.logo}>ZHOPY</span>
             <span style={styles.roleTag}>Seller</span>
           </div>
-          <button style={styles.signOutBtn} onClick={onSignOut}>Sign out</button>
+          <button style={styles.menuBtn} onClick={() => setMenuOpen(true)}>☰</button>
         </div>
       </header>
 
-      <main style={styles.main}>
-        <div style={styles.pageTitleRow}>
-          <p style={styles.pageTitle}>Seller Dashboard</p>
-          <button style={styles.reportLink} onClick={() => setShowReport(true)}>Report an issue</button>
-        </div>
-        <p style={styles.pageSub}>Post new products and manage your listings.</p>
-
-        {showSuccess && (
-          <div style={styles.successBanner}>✓ Product posted successfully!</div>
-        )}
-
-        <div style={styles.layout}>
-          <form style={styles.formCard} onSubmit={handlePost}>
-            <p style={styles.formTitle}>Add a product</p>
-
-            {error && <p style={styles.errorText}>{error}</p>}
-
-            <div style={styles.uploadBox} onClick={() => fileInputRef.current?.click()}>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileSelect}
-                style={{ display: 'none' }}
-              />
-              {imagePreview ? (
-                <>
-                  <img src={imagePreview} alt="Product preview" style={styles.previewImg} />
-                  <button type="button" style={styles.removeImgBtn} onClick={clearImage}>Remove photo</button>
-                </>
-              ) : (
-                <>
-                  <div style={{ fontSize: 22 }}>📷</div>
-                  <p style={styles.uploadText}>
-                    {saving && uploadPct > 0 ? `Uploading... ${uploadPct}%` : 'Tap to add a product photo'}
-                  </p>
-                </>
-              )}
-            </div>
-
-            <label style={styles.label}>Product name</label>
-            <input
-              style={styles.input}
-              placeholder="e.g. Ankara Print Dress"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-
-            <label style={styles.label}>Price (₦)</label>
-            <input
-              style={styles.input}
-              placeholder="e.g. 12000"
-              type="number"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-            />
-
-            <label style={styles.label}>Category</label>
-            <select style={styles.select} value={category} onChange={(e) => setCategory(e.target.value)}>
-              {CATEGORIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-
-            <label style={styles.label}>Description</label>
-            <textarea
-              style={styles.textarea}
-              placeholder="Describe the product, condition, sizing, etc."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-            />
-
+      {menuOpen && (
+        <>
+          <div style={styles.menuOverlay} onClick={() => setMenuOpen(false)} />
+          <div style={styles.menuPanel}>
             <button
-              style={saving ? { ...styles.submitBtn, ...styles.submitBtnDisabled } : styles.submitBtn}
-              type="submit"
-              disabled={saving}
+              style={view === 'products' ? { ...styles.menuItem, ...styles.menuItemActive } : styles.menuItem}
+              onClick={() => { setView('products'); setMenuOpen(false); }}
             >
-              {saving ? 'Posting...' : 'Post product'}
+              📦 Products
             </button>
-          </form>
-
-          <div style={styles.listSection}>
-            <p style={styles.listTitle}>Your listings ({products.length})</p>
-
-            {products.length === 0 ? (
-              <div style={styles.emptyState}>
-                <p style={styles.emptyText}>No products posted yet. Add your first one above.</p>
-              </div>
-            ) : (
-              products.map((p) => (
-                <div key={p.id} style={styles.productRow}>
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <div style={styles.thumbWrap}>
-                      {p.imageUrl ? <img src={p.imageUrl} alt={p.name} style={styles.thumbImg} /> : '📦'}
-                    </div>
-                    <div>
-                      <p style={styles.productName}>{p.name}</p>
-                      <p style={styles.productMeta}>{p.category}</p>
-                    </div>
-                  </div>
-                  <span style={styles.productPrice}>₦{Number(p.price).toLocaleString()}</span>
-                </div>
-              ))
-            )}
+            <button
+              style={view === 'profile' ? { ...styles.menuItem, ...styles.menuItemActive } : styles.menuItem}
+              onClick={() => { setView('profile'); setMenuOpen(false); }}
+            >
+              👤 Profile
+            </button>
+            <div style={styles.menuDivider} />
+            <button style={styles.menuItem} onClick={() => { setShowReport(true); setMenuOpen(false); }}>
+              🚩 Report an issue
+            </button>
+            <button style={styles.menuItem} onClick={onSignOut}>
+              🚪 Sign out
+            </button>
           </div>
-        </div>
+        </>
+      )}
+
+      <main style={styles.main}>
+        {view === 'products' ? (
+          <>
+            <div style={styles.pageTitleRow}>
+              <p style={styles.pageTitle}>Seller Dashboard</p>
+            </div>
+            <p style={styles.pageSub}>Post new products and manage your listings.</p>
+
+            {showSuccess && (
+              <div style={styles.successBanner}>✓ Product posted successfully!</div>
+            )}
+
+            <div style={styles.layout}>
+              <form style={styles.formCard} onSubmit={handlePost}>
+                <p style={styles.formTitle}>Add a product</p>
+
+                {error && <p style={styles.errorText}>{error}</p>}
+
+                <div style={styles.uploadBox} onClick={() => fileInputRef.current?.click()}>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileSelect}
+                    style={{ display: 'none' }}
+                  />
+                  {imagePreview ? (
+                    <>
+                      <img src={imagePreview} alt="Product preview" style={styles.previewImg} />
+                      <button type="button" style={styles.removeImgBtn} onClick={clearImage}>Remove photo</button>
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: 22 }}>📷</div>
+                      <p style={styles.uploadText}>
+                        {saving && uploadPct > 0 ? `Uploading... ${uploadPct}%` : 'Tap to add a product photo'}
+                      </p>
+                    </>
+                  )}
+                </div>
+
+                <label style={styles.label}>Product name</label>
+                <input
+                  style={styles.input}
+                  placeholder="e.g. Ankara Print Dress"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+
+                <label style={styles.label}>Price (₦)</label>
+                <input
+                  style={styles.input}
+                  placeholder="e.g. 12000"
+                  type="number"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                />
+
+                <label style={styles.label}>Units available</label>
+                <input
+                  style={styles.input}
+                  placeholder="e.g. 5"
+                  type="number"
+                  min={0}
+                  value={stock}
+                  onChange={(e) => setStock(e.target.value)}
+                />
+
+                <label style={styles.label}>Category</label>
+                <select style={styles.select} value={category} onChange={(e) => setCategory(e.target.value)}>
+                  {CATEGORIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+
+                <label style={styles.label}>Description</label>
+                <textarea
+                  style={styles.textarea}
+                  placeholder="Describe the product, condition, sizing, etc."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                />
+
+                <button
+                  style={saving ? { ...styles.submitBtn, ...styles.submitBtnDisabled } : styles.submitBtn}
+                  type="submit"
+                  disabled={saving}
+                >
+                  {saving ? 'Posting...' : 'Post product'}
+                </button>
+              </form>
+
+              <div style={styles.listSection}>
+                <p style={styles.listTitle}>Your listings ({products.length})</p>
+
+                {products.length === 0 ? (
+                  <div style={styles.emptyState}>
+                    <p style={styles.emptyText}>No products posted yet. Add your first one above.</p>
+                  </div>
+                ) : (
+                  products.map((p) => (
+                    <div key={p.id} style={styles.productRow}>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <div style={styles.thumbWrap}>
+                          {p.imageUrl ? <img src={p.imageUrl} alt={p.name} style={styles.thumbImg} /> : '📦'}
+                        </div>
+                        <div>
+                          <p style={styles.productName}>{p.name}</p>
+                          <p style={styles.productMeta}>{p.category}</p>
+                          <div style={styles.stockRow}>
+                            <span
+                              style={{
+                                ...styles.stockBadge,
+                              background: p.stock > 0 ? 'rgba(76,175,80,0.15)' : 'rgba(178,58,47,0.15)',
+                                  color: p.stock > 0 ? '#2E7D32' : '#B23A2F',
+                              }}
+                            >
+                              {p.stock > 0 ? `${p.stock} in stock` : 'Out of stock'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <span style={styles.productPrice}>₦{Number(p.price).toLocaleString()}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div style={styles.pageTitleRow}>
+              <p style={styles.pageTitle}>Your Profile</p>
+            </div>
+            <p style={styles.pageSub}>This information may be shown to buyers.</p>
+
+            {profileSuccess && <div style={styles.successBannerSmall}>✓ Profile saved!</div>}
+
+            <form style={styles.formCard} onSubmit={handleSaveProfile}>
+              {profileError && <p style={styles.errorText}>{profileError}</p>}
+
+              <div style={styles.profileField}>
+                <label style={styles.label}>Business / display name</label>
+                <input
+                  style={styles.input}
+                  placeholder="e.g. Ayo's Fashion Store"
+                  value={profileName}
+                  onChange={(e) => setProfileName(e.target.value)}
+                  disabled={profileLoading}
+                />
+              </div>
+
+              <div style={styles.profileField}>
+                <label style={styles.label}>Location</label>
+                <input
+                  style={styles.input}
+                  placeholder="e.g. Ede, Osun State"
+                  value={profileLocation}
+                  onChange={(e) => setProfileLocation(e.target.value)}
+                  disabled={profileLoading}
+                />
+              </div>
+
+              <div style={styles.profileField}>
+                <label style={styles.label}>Phone number</label>
+                <input
+                  style={styles.input}
+                  placeholder="e.g. 08012345678"
+                  value={profilePhone}
+                  onChange={(e) => setProfilePhone(e.target.value)}
+                  disabled={profileLoading}
+                />
+              </div>
+
+              <button
+                style={profileSaving ? { ...styles.submitBtn, ...styles.submitBtnDisabled } : styles.submitBtn}
+                type="submit"
+                disabled={profileSaving || profileLoading}
+              >
+                {profileSaving ? 'Saving...' : 'Save profile'}
+              </button>
+            </form>
+          </>
+        )}
       </main>
 
       {showReport && (
@@ -362,4 +545,7 @@ export default function SellerDashboard({ onSignOut }: { onSignOut: () => void }
       )}
     </div>
   );
-  }
+                               }
+
+
+                                
