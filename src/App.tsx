@@ -43,8 +43,14 @@ export default function App() {
           try {
             if (user) {
               const snap = await getDoc(doc(db, 'users', user.uid));
-              if (snap.exists() && snap.data().role) {
-                setRole(snap.data().role as Role);
+              if (snap.exists()) {
+                const data = snap.data();
+                const roles: Role[] = Array.isArray(data.roles) && data.roles.length > 0
+                  ? data.roles
+                  : data.role
+                  ? [data.role]
+                  : [];
+                setRole(roles.length > 0 ? roles[0] : null);
               } else {
                 setRole(null);
               }
