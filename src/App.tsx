@@ -26,15 +26,22 @@ export default function App() {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const snap = await getDoc(doc(db, 'users', user.uid));
-        if (snap.exists() && snap.data().role) {
-          setRole(snap.data().role as Role);
+      try {
+        if (user) {
+          const snap = await getDoc(doc(db, 'users', user.uid));
+          if (snap.exists() && snap.data().role) {
+            setRole(snap.data().role as Role);
+          } else {
+            setRole(null);
+          }
+        } else {
+          setRole(null);
         }
-      } else {
+      } catch (err) {
         setRole(null);
+      } finally {
+        setCheckingSession(false);
       }
-      setCheckingSession(false);
     });
     return () => unsub();
   }, []);
