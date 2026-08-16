@@ -29,7 +29,12 @@ async function uploadToCloudinary(file: File): Promise<string> {
   );
 
   if (!res.ok) {
-    throw new Error('Cloudinary upload failed');
+    let detail = '';
+    try {
+      const errBody = await res.json();
+      detail = errBody?.error?.message || '';
+    } catch {}
+    throw new Error(detail || `Cloudinary upload failed (${res.status})`);
   }
 
   const data = await res.json();
@@ -223,7 +228,7 @@ export default function SellerDashboard({ onSignOut }: { onSignOut: () => void }
       setShowSuccess(true);
       setTimeout(() => setShowSuccess(false), 3000);
     } catch (err: any) {
-      setError('Failed to post product. Please try again.');
+      setError(err?.message || 'Failed to post product. Please try again.');
     } finally {
       setSaving(false);
       setUploadPct(0);
@@ -357,4 +362,4 @@ export default function SellerDashboard({ onSignOut }: { onSignOut: () => void }
       )}
     </div>
   );
-          }
+  }
