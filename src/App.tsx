@@ -27,13 +27,15 @@ export default function App() {
 
   useEffect(() => {
     let settled = false;
+    const startedAt = Date.now();
 
     const timeoutId = setTimeout(() => {
       if (!settled) {
-        setDebugMsg('Timed out waiting for Firebase to respond. Check your Firebase config / authDomain.');
+        const secs = Math.round((Date.now() - startedAt) / 1000);
+        setDebugMsg(`Timed out after ${secs}s waiting for Firebase to respond. Likely a slow/unstable connection, or an authDomain mismatch.`);
         setCheckingSession(false);
       }
-    }, 7000);
+    }, 20000);
 
     let unsub = () => {};
     try {
@@ -42,6 +44,7 @@ export default function App() {
         async (user) => {
           settled = true;
           clearTimeout(timeoutId);
+          const secs = ((Date.now() - startedAt) / 1000).toFixed(1);
           try {
             if (user) {
               const snap = await getDoc(doc(db, 'users', user.uid));
@@ -50,11 +53,13 @@ export default function App() {
               } else {
                 setRole(null);
               }
+              setDebugMsg('Resolved in ' + secs + 's (logged in)');
             } else {
               setRole(null);
+              setDebugMsg('Resolved in ' + secs + 's (no user)');
             }
           } catch (err: any) {
-            setDebugMsg('Firestore lookup failed: ' + (err?.message || String(err)));
+            setDebugMsg('Firestore lookup failed after ' + secs + 's: ' + (err?.message || String(err)));
             setRole(null);
           } finally {
             setCheckingSession(false);
@@ -89,26 +94,25 @@ export default function App() {
     return <div style={styles}>Loading Zhopy...</div>;
   }
 
+  let screen: React.ReactNode;
   if (!role) {
-    return (
-      <>
-        <Auth onComplete={(r) => setRole(r)} />
-        {debugMsg && (
-          <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#B23A2F', color: '#fff', fontSize: 11, padding: 8, wordBreak: 'break-word' }}>
-            DEBUG: {debugMsg}
-          </div>
-        )}
-      </>
-    );
+    screen = <Auth onComplete={(r) => setRole(r)} />;
+  } else if (role === 'seller') {
+    screen = <SellerDashboard onSignOut={handleSignOut} />;
+  } else if (role === 'admin') {
+    screen = <AdminDashboard onSignOut={handleSignOut} />;
+  } else {
+    screen = <BuyerDashboard onSignOut={handleSignOut} />;
   }
 
-  if (role === 'seller') {
-    return <SellerDashboard onSignOut={handleSignOut} />;
-  }
-
-  if (role === 'admin') {
-    return <AdminDashboard onSignOut={handleSignOut} />;
-  }
-
-  return <BuyerDashboard onSignOut={handleSignOut} />;
-    }
+  return (
+    <>
+      {screen}
+      {debugMsg && (
+        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#B23A2F', color: '#fff', fontSize: 11, padding: 8, wordBreak: 'break-word', zIndex: 9999 }}>
+          DEBUG: {debugMsg}
+        </div>
+      )}
+    </>
+  );
+}
